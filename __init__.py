@@ -45,8 +45,8 @@ class ExtendedPluginClass(PluginClass):
         return 'ok'
     
 plugin_info = {
-    'name': 'Descarga de artículos web',
-    'description': 'Plugin para descargar artículos web y generar versiones para consulta en el gestor documental.',
+    'name': 'Descarga de videos',
+    'description': 'Plugin para descargar videos y generar versiones para consulta en el gestor documental.',
     'version': '0.1',
     'author': 'Néstor Andrés Peña',
     'type': ['settings', 'bulk'],
