@@ -147,6 +147,15 @@ class ExtendedPluginClass(PluginClass):
         # obtener la fecha de publicación del video
         publish_date = yt.publish_date
 
+        if body['extract_audio']:
+            # Extraer audio del video
+            audio_path = os.path.join(TEMPORAL_FILES_PATH, filename.split('.')[0] + '.mp3')
+            ffmpeg.input(downloaded_file_path).output(audio_path).run()
+            # Eliminar archivo original
+            os.remove(downloaded_file_path)
+            downloaded_file_path = audio_path
+            filename = os.path.basename(downloaded_file_path)
+
         data = {}
         modify_dict(data, 'metadata.firstLevel.title', yt.title)
         if body['metadata_description'] != '':
@@ -188,6 +197,13 @@ plugin_info = {
                 'label': 'URL del video',
                 'placeholder': 'URL del video',
                 'required': True
+            },
+            {
+                'type': 'checkbox',
+                'id': 'extract_audio',
+                'label': 'Extraer audio',
+                'default': False,
+                'required': False
             }
         ]
     }
