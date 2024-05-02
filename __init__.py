@@ -13,6 +13,7 @@ import ffmpeg
 from pytube import YouTube
 import json
 from datetime import datetime
+import time
 
 load_dotenv()
 
@@ -145,53 +146,65 @@ class ExtendedPluginClass(PluginClass):
         url = body['url'].split(',')
 
         for u in url:
-            yt = YouTube(u)
+            attempt = 0
+            max_attempts = 3
+            while attempt < max_attempts:
+                try:
+                    yt = YouTube(u)
+                    while yt.streams is None:
+                        yt = YouTube(u)
+                    downloaded_file_path = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first().download(TEMPORAL_FILES_PATH)
 
-            downloaded_file_path = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first().download(TEMPORAL_FILES_PATH)
+                    # obtener ruta del archivo
+                    filename = os.path.basename(downloaded_file_path)
+                    path = os.path.join(TEMPORAL_FILES_PATH, filename)
+                    # obtener la descripción del video
+                    description = yt.description
+                    # obtener la fecha de publicación del video
+                    publish_date = yt.publish_date
 
-            # obtener ruta del archivo
-            filename = os.path.basename(downloaded_file_path)
-            path = os.path.join(TEMPORAL_FILES_PATH, filename)
-            # obtener la descripción del video
-            description = yt.description
-            # obtener la fecha de publicación del video
-            publish_date = yt.publish_date
+                    if body['extract_audio']:
+                        # Extraer audio del video
+                        audio_path = os.path.join(TEMPORAL_FILES_PATH, filename.split('.')[0] + '.mp3')
+                        ffmpeg.input(downloaded_file_path).output(audio_path).run()
+                        # Eliminar archivo original
+                        os.remove(downloaded_file_path)
+                        downloaded_file_path = audio_path
+                        filename = os.path.basename(downloaded_file_path)
+                        path = os.path.join(TEMPORAL_FILES_PATH, filename)
 
-            if body['extract_audio']:
-                # Extraer audio del video
-                audio_path = os.path.join(TEMPORAL_FILES_PATH, filename.split('.')[0] + '.mp3')
-                ffmpeg.input(downloaded_file_path).output(audio_path).run()
-                # Eliminar archivo original
-                os.remove(downloaded_file_path)
-                downloaded_file_path = audio_path
-                filename = os.path.basename(downloaded_file_path)
-                path = os.path.join(TEMPORAL_FILES_PATH, filename)
+                    data = {}
+                    modify_dict(data, 'metadata.firstLevel.title', yt.title)
+                    if body['metadata_description'] != '':
+                        modify_dict(data, body['metadata_description'], description)
+                    if body['metadata_publish_date'] != '':
+                        modify_dict(data, body['metadata_publish_date'], publish_date)
 
-            data = {}
-            modify_dict(data, 'metadata.firstLevel.title', yt.title)
-            if body['metadata_description'] != '':
-                modify_dict(data, body['metadata_description'], description)
-            if body['metadata_publish_date'] != '':
-                modify_dict(data, body['metadata_publish_date'], publish_date)
+                    data['post_type'] = body['post_type']
+                    data['parent'] = [{'id': body['parent']}]
+                    data['parents'] = [{'id': body['parent']}]
 
-            data['post_type'] = body['post_type']
-            data['parent'] = [{'id': body['parent']}]
-            data['parents'] = [{'id': body['parent']}]
+                    from app.api.resources.services import create as create_resource
+                    create_resource(data, user, [{'file': path, 'filename': filename}])
 
-            from app.api.resources.services import create as create_resource
-            create_resource(data, user, [{'file': path, 'filename': filename}])
-
-            # Eliminar archivo temporal
-            os.remove(downloaded_file_path)
-  
-        return 'ok'
+                    # Eliminar archivo temporal
+                    os.remove(downloaded_file_path)
+                    return 'ok'
+                
+                except Exception as e:
+                    time.sleep(2)
+                    attempt += 1
+            else:
+                print('No se pudo descargar el video: ' + u)
+                
+            
     
 plugin_info = {
     'name': 'Descarga de videos',
     'description': 'Plugin para descargar videos y generar versiones para consulta en el gestor documental.',
     'version': '0.1',
     'author': 'Néstor Andrés Peña',
-    'type': ['settings', 'bulk'],
+    'type': ['bulk'],
     'settings': {
         'settings': [
 
