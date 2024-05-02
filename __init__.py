@@ -12,6 +12,7 @@ from bson.objectid import ObjectId
 import ffmpeg
 from pytube import YouTube
 import json
+from datetime import datetime
 
 load_dotenv()
 
@@ -93,6 +94,14 @@ class ExtendedPluginClass(PluginClass):
                         'required': True
                     })
 
+                    new_settings.append({
+                        'type': 'select',
+                        'id': 'metadata_author',
+                        'label': 'Campo de autor',
+                        'default': '',
+                        'options': [{'value': t, 'label': t} for t in metadata_paths],
+                    })
+
                     metadata_paths = []
                     get_paths(metadata, 'metadata.', ['text-area'])
                     metadata_paths = metadata_paths[::-1]
@@ -133,45 +142,47 @@ class ExtendedPluginClass(PluginClass):
                 d = d.setdefault(key, {})
             d[keys[-1]] = value
 
-        url = body['url']
-        yt = YouTube(url)
+        url = body['url'].split(',')
 
-        # Descargar video guardando en carpeta temporal y nombrandolo con un numero aleatorio
-        downloaded_file_path = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first().download(TEMPORAL_FILES_PATH)
+        for u in url:
+            yt = YouTube(u)
 
-        # obtener ruta del archivo
-        filename = os.path.basename(downloaded_file_path)
-        path = os.path.join(TEMPORAL_FILES_PATH, filename)
-        # obtener la descripción del video
-        description = yt.description
-        # obtener la fecha de publicación del video
-        publish_date = yt.publish_date
+            downloaded_file_path = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first().download(TEMPORAL_FILES_PATH)
 
-        if body['extract_audio']:
-            # Extraer audio del video
-            audio_path = os.path.join(TEMPORAL_FILES_PATH, filename.split('.')[0] + '.mp3')
-            ffmpeg.input(downloaded_file_path).output(audio_path).run()
-            # Eliminar archivo original
-            os.remove(downloaded_file_path)
-            downloaded_file_path = audio_path
+            # obtener ruta del archivo
             filename = os.path.basename(downloaded_file_path)
+            path = os.path.join(TEMPORAL_FILES_PATH, filename)
+            # obtener la descripción del video
+            description = yt.description
+            # obtener la fecha de publicación del video
+            publish_date = yt.publish_date
 
-        data = {}
-        modify_dict(data, 'metadata.firstLevel.title', yt.title)
-        if body['metadata_description'] != '':
-            modify_dict(data, body['metadata_description'], description)
-        if body['metadata_publish_date'] != '':
-            modify_dict(data, body['metadata_publish_date'], publish_date)
+            if body['extract_audio']:
+                # Extraer audio del video
+                audio_path = os.path.join(TEMPORAL_FILES_PATH, filename.split('.')[0] + '.mp3')
+                ffmpeg.input(downloaded_file_path).output(audio_path).run()
+                # Eliminar archivo original
+                os.remove(downloaded_file_path)
+                downloaded_file_path = audio_path
+                filename = os.path.basename(downloaded_file_path)
+                path = os.path.join(TEMPORAL_FILES_PATH, filename)
 
-        data['post_type'] = body['post_type']
-        data['parent'] = [{'id': body['parent']}]
-        data['parents'] = [{'id': body['parent']}]
+            data = {}
+            modify_dict(data, 'metadata.firstLevel.title', yt.title)
+            if body['metadata_description'] != '':
+                modify_dict(data, body['metadata_description'], description)
+            if body['metadata_publish_date'] != '':
+                modify_dict(data, body['metadata_publish_date'], publish_date)
 
-        from app.api.resources.services import create as create_resource
-        create_resource(data, user, [{'file': path, 'filename': filename}])
+            data['post_type'] = body['post_type']
+            data['parent'] = [{'id': body['parent']}]
+            data['parents'] = [{'id': body['parent']}]
 
-        # Eliminar archivo temporal
-        os.remove(downloaded_file_path)
+            from app.api.resources.services import create as create_resource
+            create_resource(data, user, [{'file': path, 'filename': filename}])
+
+            # Eliminar archivo temporal
+            os.remove(downloaded_file_path)
   
         return 'ok'
     
@@ -192,6 +203,14 @@ plugin_info = {
                 'text': 'Este plugin permite descargar videos de diferentes fuentes y generar versiones para consulta en el gestor documental.'
             },
             {
+                'type': 'file',
+                'name': 'file',
+                'label': 'Archivo Excel',
+                'required': True,
+                'limit': 1,
+                'acceptedFiles': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            },
+            {
                 'type': 'text',
                 'id': 'url',
                 'label': 'URL del video',
@@ -201,7 +220,7 @@ plugin_info = {
             {
                 'type': 'checkbox',
                 'id': 'extract_audio',
-                'label': 'Extraer audio',
+                'label': 'Solo guardar el audio',
                 'default': False,
                 'required': False
             }
