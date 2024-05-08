@@ -10,11 +10,14 @@ from app.api.users.services import has_role
 from app.api.records.models import RecordUpdate
 from bson.objectid import ObjectId
 import ffmpeg
+from .utils.patch import CustomCipher
 from pytube import YouTube
+from pytube import cipher
 import json
 from datetime import datetime
 import time
-
+import re
+cipher.Cipher = CustomCipher
 load_dotenv()
 
 mongodb = DatabaseHandler.DatabaseHandler()
@@ -157,6 +160,7 @@ class ExtendedPluginClass(PluginClass):
 
                     # obtener ruta del archivo
                     filename = os.path.basename(downloaded_file_path)
+                    print(filename)
                     path = os.path.join(TEMPORAL_FILES_PATH, filename)
                     # obtener la descripción del video
                     description = yt.description
@@ -179,6 +183,8 @@ class ExtendedPluginClass(PluginClass):
                         modify_dict(data, body['metadata_description'], description)
                     if body['metadata_publish_date'] != '':
                         modify_dict(data, body['metadata_publish_date'], publish_date)
+                    if body['metadata_author'] != '':
+                        modify_dict(data, body['metadata_author'], yt.author)
 
                     data['post_type'] = body['post_type']
                     data['parent'] = [{'id': body['parent']}]
@@ -192,10 +198,11 @@ class ExtendedPluginClass(PluginClass):
                     return 'ok'
                 
                 except Exception as e:
+                    print(str(e))
                     time.sleep(2)
                     attempt += 1
             else:
-                print('No se pudo descargar el video: ' + u)
+                raise Exception('No se pudo descargar el video ' + u)
                 
             
     
