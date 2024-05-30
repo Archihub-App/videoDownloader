@@ -39,13 +39,11 @@ class ExtendedPluginClass(PluginClass):
             current_user = get_jwt_identity()
             body = request.get_json()
 
-            print(body)
-
             if 'post_type' not in body:
                 return {'msg': 'No se especificó el tipo de contenido'}, 400
-        
-            if 'parent' not in body or not body['parent']:
-                return {'msg': 'No se especificó el ID del recurso padre'}, 400
+            
+            if 'parent' not in body:
+                return {'msg': 'No se especificó el padre del contenido'}, 400
             
             if not self.has_role('admin', current_user) and not self.has_role('processing', current_user):
                 return {'msg': 'No tiene permisos suficientes'}, 401
@@ -135,8 +133,6 @@ class ExtendedPluginClass(PluginClass):
             except Exception as e:
                 print(str(e))
                 return {'msg': str(e)}, 500
-    
-    
 
     @shared_task(ignore_result=False, name='videoDownloader.download')
     def bulk(body, user):
@@ -195,7 +191,6 @@ class ExtendedPluginClass(PluginClass):
 
                     # Eliminar archivo temporal
                     os.remove(downloaded_file_path)
-                    return 'ok'
                 
                 except Exception as e:
                     print(str(e))
@@ -203,6 +198,8 @@ class ExtendedPluginClass(PluginClass):
                     attempt += 1
             else:
                 raise Exception('No se pudo descargar el video ' + u)
+            
+        return 'Descarga de videos finalizada'
                 
             
     
