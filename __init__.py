@@ -42,12 +42,15 @@ class ExtendedPluginClass(PluginClass):
             if 'post_type' not in body:
                 return {'msg': 'No se especificó el tipo de contenido'}, 400
             
-            if 'parent' not in body:
+            if 'parent' not in body or not body['parent']:
                 return {'msg': 'No se especificó el padre del contenido'}, 400
+            
+            if 'url' not in body:
+                return {'msg': 'No se especificó la URL del video'}, 400
             
             if not self.has_role('admin', current_user) and not self.has_role('processing', current_user):
                 return {'msg': 'No tiene permisos suficientes'}, 401
-
+            
             task = self.bulk.delay(body, current_user)
             self.add_task_to_user(task.id, 'videoDownloader.download', current_user, 'msg')
             
@@ -156,7 +159,6 @@ class ExtendedPluginClass(PluginClass):
 
                     # obtener ruta del archivo
                     filename = os.path.basename(downloaded_file_path)
-                    print(filename)
                     path = os.path.join(TEMPORAL_FILES_PATH, filename)
                     # obtener la descripción del video
                     description = yt.description
@@ -185,12 +187,14 @@ class ExtendedPluginClass(PluginClass):
                     data['post_type'] = body['post_type']
                     data['parent'] = [{'id': body['parent']}]
                     data['parents'] = [{'id': body['parent']}]
+                    data['status'] = 'published'
 
                     from app.api.resources.services import create as create_resource
                     create_resource(data, user, [{'file': path, 'filename': filename}])
 
                     # Eliminar archivo temporal
                     os.remove(downloaded_file_path)
+                    break
                 
                 except Exception as e:
                     print(str(e))
