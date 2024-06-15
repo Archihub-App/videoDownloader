@@ -188,6 +188,11 @@ class ExtendedPluginClass(PluginClass):
                     data['parent'] = [{'id': body['parent']}]
                     data['parents'] = [{'id': body['parent']}]
                     data['status'] = 'published'
+                    data['createdBy'] = user
+                    data['filesIds'] = [{
+                        'file': 0,
+                        'filetag': 'file',
+                    }]
 
                     from app.api.resources.services import create as create_resource
                     create_resource(data, user, [{'file': path, 'filename': filename}])
