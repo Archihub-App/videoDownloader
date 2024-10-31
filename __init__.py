@@ -10,14 +10,14 @@ from app.api.users.services import has_role
 from app.api.records.models import RecordUpdate
 from bson.objectid import ObjectId
 import ffmpeg
-from .utils.patch import CustomCipher
-from pytube import YouTube
-from pytube import cipher
+# from .utils.patch import CustomCipher
+from pytubefix import YouTube
+# from pytube import cipher
 import json
 from datetime import datetime
 import time
 import re
-cipher.Cipher = CustomCipher
+# cipher.Cipher = CustomCipher
 load_dotenv()
 
 mongodb = DatabaseHandler.DatabaseHandler()
