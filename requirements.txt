@@ -1,1 +1,1 @@
-pytubefix==8.2.0
+pytubefix==8.12.1
